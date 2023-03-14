@@ -1,0 +1,105 @@
+version: "2"
+services:
+  slave1:
+    image: registry.cn-hangzhou.aliyuncs.com/zhldocker/hadoop:cluster-slave1-v7
+    container_name: cluster-slave1
+    ports:
+      - "9864:9864"
+      - "8042:8042"
+    volumes:
+      - .:/data/
+    networks:
+      hadoop:
+        ipv4_address: 172.15.0.3
+    restart: always
+    extra_hosts:
+      - "cluster-master:172.15.0.2"
+      - "cluster-slave2:172.15.0.4"
+    env_file:
+      - ENVFILE
+    privileged: true
+    depends_on:
+      - mysql
+    hostname: cluster-slave1
+    command: ["/bin/bash", "/data/run_file.sh", "/data/run_slave.sh"]
+
+  slave2:
+    image: registry.cn-hangzhou.aliyuncs.com/zhldocker/hadoop:cluster-slave2-v7
+    container_name: cluster-slave2
+    ports:
+      - "9865:9864"
+      - "8043:8042"
+    volumes:
+      - .:/data/
+    networks:
+      hadoop:
+        ipv4_address: 172.15.0.4
+    restart: always
+    extra_hosts:
+      - "cluster-master:172.15.0.2"
+      - "cluster-slave1:172.15.0.3"
+    env_file:
+      - ENVFILE
+    privileged: true
+    depends_on:
+      - mysql
+    hostname: cluster-slave2
+    command: ["/bin/bash", "/data/run_file.sh", "/data/run_slave.sh"]
+
+  master:
+    image: registry.cn-hangzhou.aliyuncs.com/zhldocker/hadoop:cluster-master-v7
+    container_name: cluster-master
+    ports:
+      - "9870:9870"
+      - "9000:9000"
+      - "8088:8088"
+      - "16010:16010"
+      - "11002:10002"
+      - "10000:10000"
+      - "9100:9100"
+      - "9200:9200"
+      - "9300:9300"
+      - "5601:5601"
+    volumes:
+      - .:/data/
+    networks:
+      hadoop:
+        ipv4_address: 172.15.0.2
+    restart: always
+    extra_hosts:
+      - "cluster-slave1:172.15.0.3"
+      - "cluster-slave2:172.15.0.4"
+    env_file:
+      - ENVFILE
+    privileged: true
+    depends_on:
+      - slave1
+      - slave2
+    hostname: cluster-master
+    command: ["/bin/bash", "/data/run_file.sh", "/data/run_master.sh"]
+
+  mysql: 
+    image: mariadb:10.2
+    container_name: mysql
+    ports:
+      - "3306:3306"
+    volumes:
+      - ".:/data/"
+      - "./mysql/config:/etc/mysql/conf.d"
+      - "./mysql/init:/docker-entrypoint-initdb.d"
+
+    networks:
+      hadoop:
+        ipv4_address: 172.15.0.5
+    restart: always
+    env_file:
+      - "./mysql/ENVFILE"
+    hostname: hive-mysql
+
+
+networks:
+  hadoop:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.15.0.0/16

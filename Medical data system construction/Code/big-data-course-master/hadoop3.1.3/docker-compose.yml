@@ -1,0 +1,66 @@
+version: "2"
+services:
+  slave1:
+    image: registry.cn-hangzhou.aliyuncs.com/zhldocker/hadoop:cluster-slave1-v2
+    container_name: cluster-slave1
+    ports:
+      - "9864:9864"
+      - "8042:8042"
+    volumes:
+      - .:/data/
+    networks:
+      hadoop:
+        ipv4_address: 172.15.0.3
+    restart: always
+    extra_hosts:
+      - "cluster-master:172.15.0.2"
+      - "cluster-slave2:172.15.0.4"
+    privileged: true
+    hostname: cluster-slave1
+  slave2:
+    image: registry.cn-hangzhou.aliyuncs.com/zhldocker/hadoop:cluster-slave2-v2
+    container_name: cluster-slave2
+    ports:
+      - "9865:9864"
+      - "8043:8042"
+    volumes:
+      - .:/data/
+    networks:
+      hadoop:
+        ipv4_address: 172.15.0.4
+    restart: always
+    extra_hosts:
+      - "cluster-master:172.15.0.2"
+      - "cluster-slave1:172.15.0.3"
+    privileged: true
+    hostname: cluster-slave2
+
+  master:
+    image: registry.cn-hangzhou.aliyuncs.com/zhldocker/hadoop:cluster-master-v2
+    container_name: cluster-master
+    ports:
+      - "9870:9870"
+      - "9000:9000"
+      - "8088:8088"
+    volumes:
+      - .:/data/
+    networks:
+      hadoop:
+        ipv4_address: 172.15.0.2
+    restart: always
+    extra_hosts:
+      - "cluster-slave1:172.15.0.3"
+      - "cluster-slave2:172.15.0.4"
+    privileged: true
+    depends_on:
+      - slave1
+      - slave2
+    hostname: cluster-master
+    command: ["/bin/bash", "/data/run_file.sh", "/data/run.sh"]
+
+networks:
+  hadoop:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: "172.15.0.0/16"
